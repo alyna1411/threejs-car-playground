@@ -16,9 +16,7 @@ import { TextGeometry } from "https://unpkg.com/three@0.160.0/examples/jsm/geome
 /* ═══════════════════════════════════
    SETUP (Globals)
    ═══════════════════════════════════ */
-// scene = 3D-World (three.js) | world = 3D-World (cannon-es) | camera = view/perspective | renderer = creates the <canvas>
-let scene, world, camera, renderer;
-
+let scene, world, camera, renderer; // scene = 3D-World (three.js) | world = 3D-World (cannon-es) | camera = view/perspective | renderer = creates the <canvas>
 let clock = new THREE.Clock(); // measures time between frames - dt = deltatime (movement not dependent on fps)
 let car, carBody, carBodyGroup // car mesh + physics body
 let physicsObjects = []; // array for physic objects
@@ -332,6 +330,50 @@ const raceControlZone = {
   zMax: -35.3
 };
 
+const raceCheckpointSets = {
+  easy: [
+    { name: "Checkpoint1", xMin: -18.95, xMax: -14.4, zMin: -32, zMax: -30 },
+    { name: "Checkpoint2", xMin: -27.2, xMax: -25, zMin: -21.7, zMax: -17 },
+    { name: "Checkpoint3", xMin: -39.4, xMax: -34.9, zMin: -32, zMax: -30 },
+    { name: "Checkpoint4", xMin: -27, xMax: -25, zMin: -45, zMax: -40.5 },
+  ],
+
+  intermediate: [
+    { name: "Checkpoint1", xMin: -3, xMax: -1, zMin: -30, zMax: -28 },
+    { name: "Checkpoint2", xMin: 6, xMax: 9, zMin: -6, zMax: -3 },
+    { name: "Checkpoint3", xMin: -7, xMax: -4, zMin: 8, zMax: 11 },
+    { name: "Checkpoint4", xMin: -39.4, xMax: -34.9, zMin: -32, zMax: -30 },
+    { name: "Checkpoint5", xMin: -27, xMax: -25, zMin: -45, zMax: -40.5 },
+  ],
+
+  hard: [
+    { name: "Checkpoint1", xMin: -27, xMax: -25, zMin: -45, zMax: -40.5 },  // on start/finish line
+    { name: "Checkpoint2", xMin: -37, xMax: -32, zMin: 14.5, zMax: 20  },   // on the ramp
+    { name: "Checkpoint3", xMin: -20, xMax: -17, zMin: 36.5, zMax: 41 },    // in the football field
+    { name: "Checkpoint4", xMin: 8, xMax: 10, zMin: 45, zMax: 48 },         // at the fence behind 3JS-Monument
+    { name: "Checkpoint5", xMin: 27, xMax: 30, zMin: 32, zMax: 35 },        // park box at workshop
+    { name: "Checkpoint6", xMin: 7, xMax: 10, zMin: -6, zMax: -3 },         // in the roundabout
+    { name: "Checkpoint7", xMin: 42, xMax: 44, zMin: 0, zMax: 2 },          // at welcome/workshop sign
+  ]
+};
+
+const race = {
+  active: false,
+  difficulty: "easy",
+
+  targetLaps: 1,
+  currentLap: 0,
+
+  lapStartTime: 0,
+  raceStartTime: 0,
+  finalTime: null,
+
+  checkpoints: raceCheckpointSets.easy,
+  collectedCheckpoints: new Set(),
+
+  finish: raceControlZone
+};
+
 // Workshop zone
 const cameraZones = [
   {
@@ -616,6 +658,38 @@ function setActiveButton(button, group, popupId = "garagePopup") {
 }
 
 window.setActiveButton = setActiveButton;
+function formatTime(ms) {
+  return (ms / 1000).toFixed(2) + "s";
+}
+
+function updateRaceUI() {
+  const now = performance.now();
+
+  const elapsed =
+  race.active
+    ? now - race.raceStartTime
+    : race.finalTime ?? 0;
+
+  const lapText =
+    race.targetLaps === Infinity
+      ? `Lap: ${race.currentLap} / ∞`
+      : `Lap: ${race.currentLap} / ${race.targetLaps}`;
+
+  const checkpointText = `Checkpoint: ${race.collectedCheckpoints.size} / ${race.checkpoints.length}`;
+
+  const timerText = `Time: ${formatTime(elapsed)}`;
+
+  const ids = {
+    raceHudTimer: timerText,
+    raceHudLap: lapText,
+    raceHudCheckpoint: checkpointText
+  };
+
+  Object.entries(ids).forEach(([id, text]) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  });
+}
 
 /* ═══════════════════════════════════
    2D SCENE
@@ -2167,6 +2241,200 @@ function buildStartGate(x, z, text = "") {
   return gate;
 }
 
+function setRaceMode(mode) {
+
+  if (mode === "1lap") race.targetLaps = 1;
+  if (mode === "3laps") race.targetLaps = 3;
+  if (mode === "5laps") race.targetLaps = 5;
+
+  race.currentLap = 0;
+
+  updateRaceUI();
+}
+
+function setRaceDifficulty(difficulty) {
+  if (!raceCheckpointSets[difficulty]) return; // ignore undefined values
+
+  race.difficulty = difficulty;
+  race.checkpoints = raceCheckpointSets[difficulty];
+
+  if (race.active) {
+    rebuildRaceMarkers();
+  } else {
+    clearRaceMarkers();
+  }
+
+  updateRaceUI();
+}
+
+window.startRace = startRace;
+window.stopRace = stopRace;
+window.setRaceMode = setRaceMode;
+window.setRaceDifficulty = setRaceDifficulty;
+
+function spawnCheckpointMarker(zone, color = 0x00ffff) {
+  const w = Math.abs(zone.xMax - zone.xMin);
+  const d = Math.abs(zone.zMax - zone.zMin);
+
+  const x = Math.min(zone.xMin, zone.xMax) + w / 2;
+  const z = Math.min(zone.zMin, zone.zMax) + d / 2;
+
+  const marker = new THREE.Group();
+
+  const plate = new THREE.Mesh(
+    new THREE.BoxGeometry(w, 0.7, d),
+    new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.2,
+      depthWrite: false
+    })
+  );
+
+  plate.position.set(0, 0, 0);
+  marker.add(plate);
+
+  const edges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(plate.geometry),
+    new THREE.LineBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.8
+    })
+  );
+
+  marker.add(edges);
+
+  marker.position.set(x, 0.5, z);
+  scene.add(marker);
+
+  raceMarkers.push(marker);
+
+  return marker;
+}
+
+function rebuildRaceMarkers() {
+  clearRaceMarkers();
+
+  const colors = {
+    easy: 0x00ff00,
+    intermediate: 0xFCA432,
+    hard: 0xF74850
+  };
+
+  const color = colors[race.difficulty] || 0xffffff;
+
+  race.checkpoints.forEach((cp) => {
+    spawnCheckpointMarker(cp, color);
+  });
+}
+
+function clearRaceMarkers() {
+  raceMarkers.forEach(marker => {
+    marker.traverse(child => {
+      if (child.geometry) child.geometry.dispose();
+
+      if (child.material) {
+        if (Array.isArray(child.material)) {
+          child.material.forEach(mat => mat.dispose());
+        } else {
+          child.material.dispose();
+        }
+      }
+    });
+
+    if (marker.parent) {
+      marker.parent.remove(marker);
+    } else {
+      scene.remove(marker);
+    }
+  });
+
+  raceMarkers.length = 0;
+}
+
+function updateRaceTimer() {
+  if (!race.active) return;
+
+  race.checkpoints.forEach((cp, i) => {
+    if (race.collectedCheckpoints.has(i)) return;
+    if (!isInsideZone(cp)) return;
+
+    race.collectedCheckpoints.add(i);
+
+    updateRaceUI();
+
+    // collected all checkpoints?
+    if (race.collectedCheckpoints.size < race.checkpoints.length) return;
+
+    if (race.currentLap >= race.targetLaps) {
+      finishRace();
+      return;
+    }
+
+    race.currentLap++;
+    race.lapStartTime = performance.now();
+
+    setTimeout(() => {
+      race.collectedCheckpoints.clear();
+      updateRaceUI();
+    }, 500);
+  });
+
+  updateRaceUI();
+}
+
+function startRace() {
+  race.active = true;
+  race.finished = false;
+  race.finalTime = null;
+
+  race.currentLap = 1;
+
+  race.raceStartTime = performance.now();
+  race.lapStartTime = performance.now();
+  race.collectedCheckpoints = new Set();
+
+  rebuildRaceMarkers();
+
+  document.getElementById("raceHud").style.display = "block";
+
+  updateRaceUI();
+}
+
+function stopRace(hideHud = true) {
+  race.active = false;
+  race.finished = true;
+
+  clearRaceMarkers();
+
+  if (hideHud) {
+    document.getElementById("raceHud").style.display = "none";
+  }
+
+  updateRaceUI();
+}
+
+function finishRace() {
+  race.active = false;
+  race.finished = true;
+
+  race.finalTime = performance.now() - race.raceStartTime;
+
+  clearRaceMarkers();  // Bug 2 fix
+
+  document.getElementById("raceHud").style.display = "block";
+
+  updateRaceUI();
+}
+
+function updateRacePopup() {
+  const popup = document.getElementById("racePopup");
+  if (!popup || !carBody) return;
+
+  popup.style.display = isInsideZone(raceControlZone) ? "block" : "none";
+}
+
 /* ----------------
    Monument
 ------------------ */
@@ -3212,6 +3480,8 @@ function animate() {
   updateCar(dt);
   updateCamera();
   updateGaragePopup();
+  updateRacePopup();
+  updateRaceTimer();
 
   // statue
   if (base3) base3.rotation.y += 0.003; // rotate car reference + top base
