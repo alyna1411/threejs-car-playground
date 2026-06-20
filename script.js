@@ -40,7 +40,7 @@ let isAutoRighting = false; // car is flipped upright -> when true = steering an
 let autoRightTimer = 0; // flip timer
 let autoRightYaw = 0; // remembers driving direction during flip (veritcal y-axis)
 let jumpCooldown = 0;
-let fixedBodies = [] // array for fixed platforms
+let fixedBodies = []; // array for fixed platforms
 let brickObjects = []; // array for brickwall
 let footballBody; // football fence
 let raceMarkers = []; // array for race checkpoints
@@ -63,6 +63,7 @@ const roadSegments = [
   { x1: 500,  y1: 1220, x2: 500,  y2: 1050 },  // road to welcome
   { x1: 1200, y1: 1800, x2: 1050, y2: 1800 },  // road to race track
 ];
+
 // Areas
 const AREAS = {
   tuning: {
@@ -115,7 +116,7 @@ const AREAS = {
 };
 
 /* ───── TUNING ───── */
-// CAR PAINT
+// PAINT
 let chromeMat;
 let glassMat;
 let lightMat;
@@ -124,8 +125,17 @@ let numberPlateMat;
 let taillightMat;
 let paintMat;
 let paintMat2;
+let selectedCarColor = 0x5D376C;
+let selectedCarColor2 = 0x9156A8;
 
-// TYRES
+  // BOOST
+let boostTheme = "purple";
+
+  // SPOILER
+let spoilerGroup;
+let spoilerStyle = "stock";
+
+  // TYRES
 let wheelStyle = "default";
 let wheelPositions = [
   [0.92, 0.15, 1.08],
@@ -149,11 +159,57 @@ const wheelStyles = {
       hubMetalness: 0.5,
       hubGeo: [0.03, 0.04, 2, 3],
       bodyLift: 0,
-    }
-};
+    },
 
-// BOOST
-let boostTheme = "purple";
+    white: {
+      tireColor: 0xFFFFFF,
+      tireRoughness: 0.2,
+      tireGeo: [0.30, 0.18, 16, 32],
+      spokes: 4,
+      spokeColor: 0x8F8F8F,
+      spokeRoughness: 0.1,
+      spokeMetalness: 0.2,
+      spokeGeo: [0.12, 0.22, 0.15],
+      hubColor: 0xFFFFFF,
+      hubRoughness: 0.5,
+      hubMetalness: 0.2,
+      hubGeo: [0.01, 0.01, 0.01],
+      bodyLift: 0.13,
+    },
+
+    spikes: {
+      tireColor: 0x1C2E2E,
+      tireRoughness: 0.45,
+      tireGeo: [0.33, 0.15, 16, 32],
+      spokes: 15,
+      spokeColor: 0x292929,
+      spokeRoughness: 0.1,
+      spokeMetalness: 0.3,
+      spokeGeo: [0.01, 0.01, 0.01],
+      hubColor: 0x787575,
+      hubRoughness: 0.5,
+      hubMetalness: 0.2,
+      hubGeo: [0.3, 1.1, 32],
+      bodyLift: 0.1,
+    },
+
+    monster: {
+      tireColor: 0x3D3D3D,
+      tireRoughness: 1,
+      tireGeo: [0.40, 0.28, 8, 12],
+      spokes: 15,
+      spokeColor: 0x403E3E,
+      spokeRoughness: 1,
+      spokeMetalness: 0.5,
+      spokeGeo: [0.2, 1.03, 0.1],
+      hubColor: 0x5D8091,
+      hubRoughness: 1,
+      hubMetalness: 0.2,
+      hubGeo: [0.2, 0.12, 3, 3],
+      bodyLift: 0.2,
+      bodyOffset: 0.42
+    }
+  };
 
 const boostThemes = {
   purple: {
@@ -207,6 +263,57 @@ const boostThemes = {
     riseRandom: 0.1,
     grow: 1.2
   }
+};
+
+const spoilerStyles = {
+  stock: {
+    wingType: "box",
+    bars: true,
+    barX: [-0.35, 0.35],
+    barY: 0.5,
+    barZ: -1.8,
+    barHeight: 1,
+    barTilt: -0.45,
+    wingWidth: 1.49,
+    wingHeight: 0.083,
+    wingDepth: 0.38,
+    wingTilt: 0.2,
+    wingY: 1.0,
+    wingZ: -2.05,
+  },
+
+  lip: {
+    wingType: "curved",
+    bars: false,
+    sideWings: false,
+    wingWidth: 1.6,
+    wingHeight: 0.1,
+    wingDepth: 0.1,
+    wingTilt: 0.5,
+    wingY: 0.76,
+    wingZ: -2,
+    curveHeight: 0.2,
+    curveDirection: "down"
+  },
+
+  superbird: {
+    wingType: "box",
+    sideWings: false,
+    bars: true,
+    barX: [-0.77, 0.78],
+    barY: 1.2,
+    barZ: -1.85,
+    barHeight: 1,
+    barTilt: -0.12,
+    wingWidth: 1.63,
+    wingHeight: 0.06,
+    wingDepth: 0.18,
+    wingTilt: 0,
+    wingY: 1.72,
+    wingZ: -1.935,
+  },
+
+  none: null,
 };
 
 /* ───── ZONES ───── */
@@ -402,6 +509,9 @@ function init() {
   });
 
   buildCarBody(carBodyGroup, paintMat, paintMat2);
+  // ── SPOILER ──
+  createSpoiler("stock");
+
   scene.add(car);
 
   // WHEELS POSITION
@@ -479,6 +589,33 @@ window.addEventListener("resize", onResize); // when browser window is resized -
   ═══════════════════════════════════ */
 buildWorldFromSceneBuilder();
 }
+
+/* ═══════════════════════════════════
+   UI POP UP
+   ═══════════════════════════════════ */
+function updateGaragePopup() {
+  const popup = document.getElementById("garagePopup");
+
+  if (!popup) return;
+  if (!carBody) return;
+
+  if (isInsideZone(garageZone)) {
+    popup.style.display = "block";
+  } else {
+    popup.style.display = "none";
+  }
+}
+
+function setActiveButton(button, group, popupId = "garagePopup") {
+
+  document
+    .querySelectorAll(`#${popupId} button[data-group="${group}"]`)
+    .forEach(btn => btn.classList.remove("active"));
+
+  button.classList.add("active");
+}
+
+window.setActiveButton = setActiveButton;
 
 /* ═══════════════════════════════════
    2D SCENE
@@ -2746,10 +2883,49 @@ function activateBricksNearCar() {
 /* ═══════════════════════════════════
    TUNING
    ═══════════════════════════════════ */
+
 // PAINT-TUNING
+function setCarColorTheme(theme) {
 
+  if (!isInsideZone(garageZone)) return;
 
-// TYRE-TUNING
+  const colors = {
+    purple: {
+      primary: 0x5D376C,
+      secondary: 0x9156A8
+    },
+    red: {
+      primary: 0x8C1F1F,
+      secondary: 0xD94141
+    },
+    blue: {
+      primary: 0x4A7DFF,
+      secondary: 0x95B0F5
+    },
+    green: {
+      primary: 0x1F7A32,
+      secondary: 0x56D46B
+    },
+    black: {
+      primary: 0x111111,
+      secondary: 0x333333
+    }
+  };
+
+  const selected = colors[theme];
+
+  if (!selected) return;
+
+  selectedCarColor = selected.primary;
+  selectedCarColor2 = selected.secondary;
+
+  paintMat.color.setHex(selectedCarColor);
+  paintMat2.color.setHex(selectedCarColor2);
+}
+
+window.setCarColorTheme = setCarColorTheme;
+
+// TYRE TUNING
 function createWheel(x, y, z, style = wheelStyle) {
   const wheelGroup = new THREE.Group();  // steering only
   const rollGroup = new THREE.Group();   // rolling only
@@ -2805,10 +2981,168 @@ function createWheel(x, y, z, style = wheelStyle) {
   return wheelGroup;
 }
 
+function setWheelStyle(style) {
+  if (!isInsideZone(garageZone)) return;  // ← erst prüfen
+  if (!wheelStyles[style]) return;
+
+  wheelStyle = style;
+
+  carWheels.forEach(wheel => car.remove(wheel));  // ← richtige Gruppe, kein void
+  carWheels = [];
+  allWheels = [];
+
+  const newLift = wheelStyles[style].bodyLift || 0;
+  const bodyOffset = wheelStyles[style].bodyOffset || 0;
+
+  carBodyGroup.position.y = newLift + bodyOffset;
+
+  wheelPositions.forEach(([x, y, z], i) => {
+    const wheel = createWheel(x, y + newLift, z, wheelStyle);
+    wheel.userData.isWheel = true;
+    car.add(wheel);
+    carWheels.push(wheel);
+    if (i < 2) allWheels.push(wheel);
+  });
+}
+
+window.setWheelStyle = setWheelStyle;
+
 // BOOST TUNING
+function setBoostTheme(theme){
+  if (!isInsideZone(garageZone)) return;
+  if (!boostThemes[theme]) return;
+
+  boostTheme = theme;
+}
+
+window.setBoostTheme = setBoostTheme;
 
 // SPOILER TUNING
+function createCurvedSpoilerPart(cfg, material) {
+  const curve = new THREE.Shape();
 
+  const w = cfg.wingWidth;
+  const h = cfg.wingHeight;
+  const c = cfg.curveHeight || 0.15;
+
+  if (cfg.curveDirection === "down") {
+    curve.moveTo(-w / 2, 0);
+    curve.quadraticCurveTo(0, -c, w / 2, 0);
+    curve.lineTo(w / 2, -h);
+    curve.quadraticCurveTo(0, -c - h, -w / 2, -h);
+    curve.lineTo(-w / 2, 0);
+  } else {
+    curve.moveTo(-w / 2, 0);
+    curve.quadraticCurveTo(0, c, w / 2, 0);
+    curve.lineTo(w / 2, -h);
+    curve.quadraticCurveTo(0, c - h, -w / 2, -h);
+    curve.lineTo(-w / 2, 0);
+  }
+
+  const geo = new THREE.ExtrudeGeometry(curve, {
+    depth: cfg.wingDepth,
+    bevelEnabled: false,
+    steps: 1
+  });
+
+  geo.center();
+
+  return new THREE.Mesh(geo, material);
+}
+
+function createSpoiler(style = "stock") {
+  const cfg = spoilerStyles[style];
+
+  spoilerGroup = new THREE.Group();
+
+  if (!cfg) {
+    carBodyGroup.add(spoilerGroup);
+    return;
+  }
+
+  // Spoiler Bars
+  if (cfg.bars) {
+    const barX = cfg.barX || [-0.35, 0.35];
+    const barY = cfg.barY ?? 0.5;
+    const barZ = cfg.barZ ?? -1.8;
+
+    barX.forEach(x => {
+      const bar = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, cfg.barHeight, 0.18),
+        paintMat2
+      );
+
+      bar.rotation.x = cfg.barTilt;
+      bar.position.set(x, barY, barZ);
+      spoilerGroup.add(bar);
+    });
+  }
+
+  if (cfg.wingType === "curved") {
+  const curvedPart = createCurvedSpoilerPart(cfg, paintMat2);
+
+  curvedPart.rotation.x = cfg.wingTilt;
+  curvedPart.position.set(0, cfg.wingY, cfg.wingZ);
+
+  spoilerGroup.add(curvedPart);
+
+  } else {
+
+  // Main wing 1
+  const spoilerLip = new THREE.Mesh(
+    new THREE.BoxGeometry(cfg.wingWidth, cfg.wingHeight, cfg.wingDepth),
+    paintMat2
+  );
+
+  spoilerLip.rotation.x = cfg.wingTilt;
+  spoilerLip.position.set(0, cfg.wingY, cfg.wingZ);
+  spoilerGroup.add(spoilerLip);
+
+  // Main wing 2
+  const spoilerLip2 = new THREE.Mesh(
+    new THREE.BoxGeometry(
+      cfg.wingWidth + 0.01,
+      cfg.wingHeight * 0.96,
+      cfg.wingDepth + 0.01
+    ),
+    paintMat
+  );
+
+  spoilerLip2.rotation.x = cfg.wingTilt;
+  spoilerLip2.position.set(0.01, cfg.wingY - 0.01, cfg.wingZ + 0.01);
+  spoilerGroup.add(spoilerLip2);
+  }
+
+  // side wings
+  if (cfg.sideWings !== false) {
+  [-cfg.wingWidth / 2 - 0.055, cfg.wingWidth / 2 + 0.055].forEach(x => {
+    const side = new THREE.Mesh(
+      new THREE.BoxGeometry(0.028, 0.25, cfg.wingDepth),
+      paintMat2
+    );
+
+    side.rotation.x = 10;
+    side.position.set(x, cfg.wingY + 0.01, cfg.wingZ + 0.02);
+    spoilerGroup.add(side);
+  });
+}
+  carBodyGroup.add(spoilerGroup);
+}
+
+function setSpoilerStyle(style) {
+  if (!isInsideZone(garageZone)) return;
+  if (!(style in spoilerStyles)) return;
+
+  spoilerStyle = style;
+
+  if (spoilerGroup) {
+    carBodyGroup.remove(spoilerGroup);
+  }
+
+  createSpoiler(style);
+}
+
+window.setSpoilerStyle = setSpoilerStyle;
 
 /* ═══════════════════════════════════
    CAMERA
@@ -2877,13 +3211,17 @@ function animate() {
 
   updateCar(dt);
   updateCamera();
+  updateGaragePopup();
+
+  // statue
+  if (base3) base3.rotation.y += 0.003; // rotate car reference + top base
 
   document.getElementById("coords").innerHTML =
   `X: ${carBody.position.x.toFixed(1)}<br>
    Y: ${carBody.position.y.toFixed(1)}<br>
    Z: ${carBody.position.z.toFixed(1)}`;
 
-  renderer.render(scene, camera); // draw scene/world again
+   renderer.render(scene, camera); // draw scene/world again
 }
 
 /* ═══════════════════════════════════
