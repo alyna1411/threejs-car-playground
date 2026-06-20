@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Three.js Car Playground</title>
+<link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+<div id="hud"><b>CONTROLS</b><br>Drive [WASD] <br>Boost [SHIFT]<br>Honk [H]<br>Reset [R]<br>Jump [SPACE]</br>
+</div>
+
+<div id="coords"></div>
+
+<div id="garagePopup">
+  <h2>🔧 WORKSHOP</h2>
+
+  <p>Welcome to the Tuning Area.</p>
+
+<hr>
+
+<p>Available services:</p>
+
+<p>🎨 Repaint Vehicle</p>
+  <button data-group="paint" onclick="setCarColorTheme('purple'); setActiveButton(this,'paint')">Purple</button>
+  <button data-group="paint" onclick="setCarColorTheme('red'); setActiveButton(this,'paint')">Red</button>
+  <button data-group="paint" onclick="setCarColorTheme('blue'); setActiveButton(this,'paint')">Blue</button>
+  <button data-group="paint" onclick="setCarColorTheme('green'); setActiveButton(this,'paint')">Green</button>
+  <button data-group="paint" onclick="setCarColorTheme('black'); setActiveButton(this,'paint')">Black</button>
+
+<p>🚀 Boost Style</p>
+  <button data-group="boost" onclick="setBoostTheme('purple'); setActiveButton(this,'boost')">Purple</button>
+  <button data-group="boost" onclick="setBoostTheme('fire'); setActiveButton(this,'boost')">Fire</button>
+  <button data-group="boost" onclick="setBoostTheme('smoke'); setActiveButton(this,'boost')">Smoke</button>
+  <button data-group="boost" onclick="setBoostTheme('bubbles'); setActiveButton(this,'boost')">Bubbles</button>
+
+<p>🛞 Tyre Upgrade</p>
+  <button data-group="wheel" onclick="setWheelStyle('default'); setActiveButton(this,'wheel')">Default</button>
+  <button data-group="wheel" onclick="setWheelStyle('white'); setActiveButton(this,'wheel')">White</button>
+  <button data-group="wheel" onclick="setWheelStyle('spikes'); setActiveButton(this,'wheel')">Spikes</button>
+  <button data-group="wheel" onclick="setWheelStyle('monster'); setActiveButton(this,'wheel')">Monster</button>
+
+<p>✈️ Spoiler Options</p>
+  <button data-group="spoiler" onclick="setSpoilerStyle('stock'); setActiveButton(this,'spoiler')">Stock</button>
+  <button data-group="spoiler" onclick="setSpoilerStyle('lip'); setActiveButton(this,'spoiler')">Lip</button>
+  <button data-group="spoiler" onclick="setSpoilerStyle('superbird'); setActiveButton(this,'spoiler')">Superbird</button>
+  <button data-group="spoiler" onclick="setSpoilerStyle('none'); setActiveButton(this,'spoiler')">None</button>
+<hr>
+
+<p>Have fun Tuning! ✨</p>
+</div>
+<div id="racePopup">
+  <h2>🏁 RACING ZONE</h2>
+
+  <p>Welcome to the Race Track.</p>
+
+  <hr>
+
+  <p>Colored markers on the ground show your checkpoints — collect them all in any order. The number of laps determines how many times you need to clear them. The timer starts immediately when you hit <b>Start Race</b>. Once the last lap is done, the timer stops automatically.</p>
+  <p>🟢 <b>Easy</b> — checkpoints stay on the track.<br>
+  🟡 <b>Intermediate</b> — some checkpoints go off-track.<br>
+  🔴 <b>Hard</b> — checkpoints spread across the entire map!</p>
+  
+  <p>Beat your best time and keep going for a new record. Good luck! ⏱️</p>
+
+  <hr>
+
+  <p id="setupRace">Set up your race:</p>
+
+  <p>Mode</p>
+  <button data-group="raceMode" onclick="setRaceMode('1lap'); setActiveButton(this,'raceMode','racePopup')">1 Lap</button>
+  <button data-group="raceMode" onclick="setRaceMode('3laps'); setActiveButton(this,'raceMode','racePopup')">3 Laps</button>
+  <button data-group="raceMode" onclick="setRaceMode('5laps'); setActiveButton(this,'raceMode','racePopup')">5 Laps</button>
+
+  <p>Difficulty</p>
+  <button data-group="raceDifficulty" onclick="setRaceDifficulty('easy'); setActiveButton(this,'raceDifficulty','racePopup')">Easy</button>
+  <button data-group="raceDifficulty" onclick="setRaceDifficulty('intermediate'); setActiveButton(this,'raceDifficulty','racePopup')">Intermediate</button>
+  <button data-group="raceDifficulty" onclick="setRaceDifficulty('hard'); setActiveButton(this,'raceDifficulty','racePopup')">Hard</button>
+  <hr>
+  <button onclick="startRace('startRace')">Start Race</button>
+  <button onclick="stopRace(true)">Stop Race</button>
+  <hr>
+
+<p>Have fun Racing! 🏎️💨</p>
+</div>
+
+<div id="raceHud">
+  <h2>🏁 RACE LIVE</h2>
+  <p id="raceHudTimer">Time: 0.00s</p>
+  <p id="raceHudLap">Lap: 0 / 1</p>
+  <p id="raceHudCheckpoint">Checkpoint: 0 / 4</p>
+</div>
+
+<script type="module" src="script.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,199 @@
+body {
+  margin:0; 
+  overflow:hidden; 
+  background:#111; 
+}
+
+canvas { 
+  display:block; 
+}
+
+/* Console info */
+#hud { 
+  position:absolute;
+  background-color: rgb(39, 39, 39);
+  opacity: 0.6;
+  color: rgb(255, 255, 255);
+  bottom: 10px; 
+  left: 10px;
+  font-family: 'Exo 2', sans-serif;
+  padding: 1em;
+  z-index: 999;
+  font-size: 12px;
+}
+
+a { 
+  text-decoration: underline; 
+  color: inherit; 
+  text-align: center; 
+}
+
+.page-button { 
+  color: rgb(241, 240, 171); 
+  display: flex; 
+  justify-content: left; 
+}
+
+#coords{
+  position: fixed;
+  top: 10px;
+  left: 10px;
+
+  color: white;
+  font-family: 'Exo 2', sans-serif;
+  background: rgba(0,0,0,0.5);
+  font-size: 12px;
+  
+  padding: 8px;
+  border-radius: 8px;
+  z-index: 999;
+}
+
+/* UI */
+#garagePopup {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+
+  width: 360px;
+  padding: 16px;
+
+  background: rgba(0, 0, 0, 0.75);
+  color: white;
+
+  font-family: 'Exo 2', sans-serif;
+  font-size: 14px;
+  border: 2px solid white;
+  border-radius: 12px;
+
+  display: none;
+  z-index: 999;
+}
+
+#garagePopup h2 {
+  margin-top: 0;
+}
+
+#garagePopup button,
+#racePopup button {
+  position: relative;
+  overflow: visible;
+  border-radius: 10px;
+  font-family: 'Exo 2', sans-serif;
+  font-size: 14px;
+  padding: 0.3em;
+}
+
+button[onclick*="'red'"]    { background: rgb(131, 11, 11); color: white; }
+button[onclick*="'blue'"]   { background: rgb(34, 61, 136); color: white; }
+button[onclick*="'purple'"] { background: rgb(102, 10, 102); color: white; }
+button[onclick*="'green'"]  { background: rgb(16, 100, 16); color: white; }
+button[onclick*="'black'"]  { background: black; color: white;}
+
+button[onclick*="'fire'"]    { background: rgb(253, 59, 25); color: black; }
+button[onclick*="'smoke'"]    { background: rgb(77, 77, 77); color: white; }
+button[onclick*="'bubbles'"]    { background: rgb(165, 226, 250); color: black; }
+
+button[onclick*="'default'"]    { background: rgb(199, 199, 199); color: black; }
+button[onclick*="'white'"]    { background: rgb(199, 199, 199); color: black; }
+button[onclick*="'spikes'"]    { background: rgb(199, 199, 199); color: black; }
+button[onclick*="'monster'"]    { background: rgb(199, 199, 199); color: black; }
+
+button[onclick*="'stock'"]    { background: rgb(25, 7, 49); color: white; }
+button[onclick*="'lip'"]    { background: rgb(25, 7, 49); color: white; }
+button[onclick*="'superbird'"]    { background: rgb(25, 7, 49); color: white; }
+button[onclick*="'none'"]    { background: rgb(25, 7, 49); color: white; }
+
+#garagePopup button.active, 
+#racePopup button.active {
+  outline: 0.2px solid rgb(230, 230, 230);
+  border-radius: 10px;
+  box-shadow:  
+    0 0 0 0.5px rgb(202, 202, 202),
+    0 0 10px #9a65a1,
+    0 0 12px #9a65a1;
+  transform: scale(1.05);
+}
+
+#garagePopup button.active::after,
+#racePopup button.active::after {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+
+  border-radius: 50%;
+  background: white;
+  color: black;
+
+  font-size: 12px;
+  font-weight: bold;
+  text-align: center;
+  line-height: 18px;
+
+  z-index: 2;
+}
+
+#racePopup {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+
+  width: 300px;
+  padding: 16px;
+
+  background: rgba(0, 0, 0, 0.75);
+  color: white;
+
+  font-family: 'Exo 2', sans-serif;
+  font-size: 12px;
+  border: 2px solid white;
+  border-radius: 12px;
+
+  display: none;
+  z-index: 999;
+}
+
+button[onclick*="'1lap'"]    { background: rgb(54, 54, 54); color: rgb(255, 254, 254); }
+button[onclick*="'3laps'"]    { background: rgb(54, 54, 54); color: rgb(255, 254, 254); }
+button[onclick*="'5laps'"]    { background: rgb(54, 54, 54); color: rgb(255, 254, 254); }
+
+button[onclick*="'easy'"]    { background: rgb(146, 241, 56); color: rgb(0, 0, 0); }
+button[onclick*="'intermediate'"]    { background: rgb(241, 229, 56); color: rgb(0, 0, 0); }
+button[onclick*="'hard'"]    { background: rgb(252, 62, 62); color: rgb(0, 0, 0); }
+
+#racePopup h2 {
+  margin-top: 0;
+}
+
+#raceHud {
+  position: fixed;
+  top: 76px;
+  left: 10px;
+  width: 180px;
+  padding: 12px 18px;
+
+  background: rgba(0,0,0,0.75);
+  color: white;
+
+  font-family: 'Exo 2', sans-serif;
+  border: 2px solid #00ff99;
+  border-radius: 12px;
+
+  display: none;
+  z-index: 999;
+}
+
+#raceHud h2 {
+  margin: 0 0 6px 0;
+}
+
+#raceHud p {
+  margin: 3px 0;
+}
+
+#setupRace {
+  font-size: 14px;
+  font-weight: bold;
+}
