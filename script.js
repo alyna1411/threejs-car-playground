@@ -37,9 +37,75 @@ let autoRightYaw = 0; // remembers driving direction during flip (veritcal y-axi
 let jumpCooldown = 0;
 let fixedBodies = [] // array for fixed platforms
 
+/* ═══════════════════════════════════
+   DRAWING CONSTANTS
+═══════════════════════════════════ */
+const roundaboutX = 1024;
+const roundaboutY = 1024;
+const roundaboutRadius = 200;
+// Array for GroundTexture
+const roadSegments = [
+  { x1: 1024, y1: 0,    x2: 1024, y2: 764  },  // north
+  { x1: 1024, y1: 1284, x2: 1024, y2: 2048 },  // south
+  { x1: 0,    y1: 1024, x2: 764,  y2: 1024 },  // west
+  { x1: 1284, y1: 1024, x2: 2048, y2: 1024 },  // east
+  { x1: 250,  y1: 350,  x2: 250,  y2: 1024 },  // road to workshop
+  { x1: 1600, y1: 1000, x2: 1600, y2: 860  },  // road to stunt park
+  { x1: 500,  y1: 1220, x2: 500,  y2: 1050 },  // road to welcome
+  { x1: 1200, y1: 1800, x2: 1050, y2: 1800 },  // road to race track
+];
+// Areas
+const AREAS = {
+  tuning: {
+    x: 0,
+    y: 0,
+    w: 550,
+    h: 700,
+    radius: 120,
+    color: "#782628",
+    tl: 22,
+    tr: 20,
+    br: 250,
+    bl: 250
+  },
+
+  stunt: {
+    x: 1200,
+    y: 100,
+    w: 750,
+    h: 700,
+    radius: 120,
+    color: "#5C4A32",
+    tl: 20,
+    tr: 250,
+    br: 30,
+    bl: 300
+  },
+
+  race: {
+    x: 1220,
+    y: 1300,
+    w: 700,
+    h: 700,
+    radius: 120,
+    color: "#5A5A5A",
+    tl: 40,
+    tr: 40,
+    br: 40,
+    bl: 40
+  },
+
+  welcome: {
+    x: 150,
+    y: 1300,
+    w: 700,
+    h: 650,
+    radius: 120,
+    color: "#0358A3",
+  }
+};
 
 /* ───── TUNING ───── */
-
 // CAR PAINT
 let chromeMat;
 let glassMat;
@@ -74,40 +140,7 @@ const wheelStyles = {
       hubMetalness: 0.5,
       hubGeo: [0.03, 0.04, 2, 3],
       bodyLift: 0,
-    },
-
-  lip: {
-    wingType: "curved",
-    bars: false,
-    sideWings: false,
-    wingWidth: 1.6,
-    wingHeight: 0.1,
-    wingDepth: 0.1,
-    wingTilt: 0.5,
-    wingY: 0.76,
-    wingZ: -2,
-    curveHeight: 0.2,
-    curveDirection: "down"
-  },
-
-  superbird: {
-    wingType: "box",
-    sideWings: false,
-    bars: true,
-    barX: [-0.77, 0.78],
-    barY: 1.2,
-    barZ: -1.85,
-    barHeight: 1,
-    barTilt: -0.12,
-    wingWidth: 1.63,
-    wingHeight: 0.06,
-    wingDepth: 0.18,
-    wingTilt: 0,
-    wingY: 1.72,
-    wingZ: -1.935,
-  },
-
-  none: null,
+    }
 };
 
 // BOOST
@@ -168,7 +201,6 @@ const boostThemes = {
 };
 
 /* ───── ZONES ───── */
-
 const jumpZone = {
   xMin: -40.5,
   xMax: -29.5,
@@ -223,7 +255,6 @@ const rampBoostBlockZone = {
   zMax: 23.5
 };
 
-
 /* ───── HONK AUDIO ───── */
 const honkSound = new Audio('/audio/honk.mp3');
 honkSound.volume = 0.2;
@@ -276,11 +307,12 @@ function init() {
   canvas.height = 2048;
   const ctx = canvas.getContext('2d'); // ctx = drawing pen (2D)
   
-  ctx.fillStyle = "#1A521A";
-  ctx.fillRect(0, 0, 2048, 2048); // ctx draws a square (x = 0, y = 0, width = 2048, height = 2048)
-  
+  drawGroundTexture(ctx);
+
   const texture = new THREE.CanvasTexture(canvas); // three.js creates texture from drawn canvas (THREE.Material only knows texure, not canvas)
-  
+  texture.repeat.set(-1, -1);
+  texture.offset.set(1, 1);
+
   const groundMesh = new THREE.Mesh(
     new THREE.PlaneGeometry(100, 100),  // size of driveable area (GROUND)
     new THREE.MeshStandardMaterial({ map: texture }) // apply texture to ground material
@@ -290,7 +322,7 @@ function init() {
 
   /* ───── PHYSICS WORLD ───── */
   world = new CANNON.World(); // create invisible physic-world (cannon-es)
-  world.gravity.set(0,-9.82,0); // gravity on x-axis (left=0, down=-9.82, right=0)
+  world.gravity.set(0,-9.82,0); // gravity on y-axis (left=0, down=-9.82, right=0)
   world.broadphase = new CANNON.SAPBroadphase(world); // optimize collision detection
   world.broadphase.axisIndex = 0; // sort along the x-axis
   world.solver.iterations = 10;
@@ -380,7 +412,7 @@ function init() {
   const shape = new CANNON.Box(new CANNON.Vec3(0.75,0.25,1.5));
   carBody = new CANNON.Body({ mass:800 });
   carBody.addShape(shape);
-  carBody.position.set(14.8,0.3,34.2); // start position
+  carBody.position.set(31.6,0.3,-35); // start position
   world.addBody(carBody);
 
   /* ═══════════════════════════════════
@@ -430,6 +462,542 @@ window.addEventListener("blur", () => {
 });
 
   window.addEventListener("resize", onResize); // when browser window is resized - adjust/update scene size
+}
+
+
+
+/* ═══════════════════════════════════
+   2D SCENE
+   ═══════════════════════════════════ */
+function drawGroundTexture(ctx) {
+
+  drawGrass(ctx);
+
+  drawAreaSurfaces(ctx);
+
+  drawRoads(ctx);
+
+  drawRoundabout(ctx);
+
+  drawRoadMarkings(ctx);
+
+  drawParkBoxes(ctx);
+
+  drawRaceTrack(ctx);
+
+  drawFinishLine(ctx);
+
+  drawGroundText(ctx);
+
+  drawFootballField(ctx);
+}
+
+// GROUND
+function drawGrass(ctx) {
+
+  ctx.fillStyle = "#1A521A";
+  ctx.fillRect(0, 0, 2048, 2048);
+
+  for (let i = 0; i < 30000; i++) {
+
+    const x = Math.random() * 2048;
+    const y = Math.random() * 2048;
+
+    const size = Math.random() * 4 + 1;
+
+    const colors = [
+      "#3C7D3C",
+      "#174F17",
+      "#3E853E"
+    ];
+
+    ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+
+    ctx.fillRect(x, y, size, size);
+  }
+}
+
+function drawAreaSurfaces(ctx) {
+  drawOrganicArea(ctx, AREAS.tuning);
+  drawOrganicArea(ctx, AREAS.stunt);
+  drawOrganicArea(ctx, AREAS.race);
+  drawOrganicArea(ctx, AREAS.welcome);
+}
+
+function drawFootballField(ctx) {
+
+  ctx.strokeStyle = "#F2F2F2";
+  ctx.lineWidth = 4;
+
+  const fieldX = 1250;
+  const fieldY = 150;
+
+  const fieldWidth = 290;
+  const fieldHeight = 165;
+
+  // outer lines
+  ctx.strokeRect(
+    fieldX,
+    fieldY,
+    fieldWidth,
+    fieldHeight
+  );
+
+  // center line
+  ctx.beginPath();
+  ctx.moveTo(
+    fieldX + fieldWidth / 2,
+    fieldY
+  );
+  ctx.lineTo(
+    fieldX + fieldWidth / 2,
+    fieldY + fieldHeight
+  );
+  ctx.stroke();
+
+  // center circle
+  ctx.beginPath();
+  ctx.arc(
+    fieldX + fieldWidth / 2,
+    fieldY + fieldHeight / 2,
+    28,
+    0,
+    Math.PI * 2
+  );
+  ctx.stroke();
+
+  // goal lines
+  ctx.strokeRect(
+    1540 - 20,  // right
+    204,
+    20,
+    60
+  );
+
+  ctx.strokeRect(
+    1270 - 20, // left
+    204,
+    20,
+    60
+  );
+
+}
+
+/* ----------------
+   ROADS
+------------------ */
+// ROUNDABOUT
+function drawRoundabout(ctx) {
+
+  ctx.strokeStyle = "#0D0D0D";
+  ctx.lineWidth = 120;
+
+  ctx.beginPath();
+  ctx.arc(
+    roundaboutX,
+    roundaboutY,
+    roundaboutRadius,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.stroke();
+}
+
+// DRAW AREA HELPER 
+function drawOrganicArea(ctx, area) {
+  const x = area.x;
+  const y = area.y;
+  const w = area.w;
+  const h = area.h;
+
+  const tl = area.tl ?? 220;  // top-left curve
+  const tr = area.tr ?? 220;  // top-right curve
+  const br = area.br ?? 50; // bottom-right curve
+  const bl = area.bl ?? 50; // bottom-left curve
+
+  ctx.fillStyle = area.color;
+
+  ctx.beginPath();
+
+  ctx.moveTo(x + tl, y);
+
+  ctx.lineTo(x + w - tr, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + tr);
+
+  ctx.lineTo(x + w, y + h - br);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - br, y + h);
+
+  ctx.lineTo(x + bl, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - bl);
+
+  ctx.lineTo(x, y + tl);
+  ctx.quadraticCurveTo(x, y, x + tl, y);
+
+  ctx.closePath();
+  ctx.fill();
+}
+
+// ROADS
+function drawRoads(ctx) {
+  ctx.strokeStyle = "#0D0D0D";
+  ctx.lineWidth = 120;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  roadSegments.forEach(({ x1, y1, x2, y2 }) => {
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  });
+}
+
+// ROAD MARKINGS
+function drawRoadMarkings(ctx) {
+  ctx.strokeStyle = "#BFBFAC";
+  ctx.lineWidth = 4;
+  ctx.setLineDash([45, 35]);
+
+  // roundabout
+  ctx.beginPath();
+  ctx.arc(1024, 1024, 200, 0, Math.PI * 2);
+  ctx.stroke();
+
+  roadSegments.forEach(({ x1, y1, x2, y2 }) => {
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  });
+
+  ctx.setLineDash([]);
+
+  drawZebraCrossing(ctx, 968, 705,  true);   // north
+  drawZebraCrossing(ctx, 968, 1295, true);   // south
+  drawZebraCrossing(ctx, 1295, 969, false);  // east
+  drawZebraCrossing(ctx, 705,  969, false);  // west
+}
+
+// ZEBRA CROSSINGS
+function drawZebraCrossing(ctx, x, y, horizontal = true) {
+
+  ctx.fillStyle = "#F2F2F2";
+
+  const stripeWidth = 10;
+  const stripeHeight = 50;
+  const stripeGap = 10;
+
+  for (let i = 0; i < 6; i++) {
+
+    if (horizontal) {
+
+      ctx.fillRect(
+        x + i * (stripeWidth + stripeGap),
+        y,
+        stripeWidth,
+        stripeHeight
+      );
+
+    } else {
+
+      ctx.fillRect(
+        x,
+        y + i * (stripeWidth + stripeGap),
+        stripeHeight,
+        stripeWidth
+      );
+
+    }
+  }
+}
+
+// PARK BOXES
+function drawParkBoxes(ctx) {
+// at workshop
+  ctx.fillStyle = '#0D0D0D';
+  ctx.fillRect(360, 220, 120, 80); // x, y, width, height
+  ctx.fillRect(360, 300, 120, 80); // x, y, width, height
+  // WHITE OUTLINES
+  ctx.strokeStyle = '#D9D9D9';
+  ctx.lineWidth = 0.5;
+  ctx.strokeRect(360, 220, 120, 80);
+  ctx.strokeRect(360, 300, 120, 80);
+
+// at stunt park
+  ctx.fillStyle = '#0D0D0D';
+  ctx.fillRect(1085, 294, 110, 70); // x, y, width, height
+  ctx.fillRect(1085, 222, 110, 70); // x, y, width, height
+  ctx.fillRect(1085, 150, 110, 70); // x, y, width, height
+  
+  // white outlines
+  ctx.strokeStyle = '#D9D9D9';
+  ctx.lineWidth = 0.5;
+  ctx.strokeRect(1085, 294, 110, 70);
+  ctx.strokeRect(1085, 222, 110, 70);
+  ctx.strokeRect(1085, 150, 110, 70);
+
+  ctx.fillStyle = '#0D0D0D';
+  ctx.fillRect(1540, 802, 120, 80); // x, y, width, height
+
+// at welcome
+  ctx.fillRect(440, 1230, 120, 70); // x, y, width, height
+  
+// at race track
+  ctx.fillRect(1210, 1740, 50, 120); // x, y, width, height
+
+}
+
+// RACE TRACK
+function drawRaceTrack(ctx) {
+  ctx.strokeStyle = "#0D0D0D";
+  ctx.lineWidth = 95;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  ctx.beginPath();
+  ctx.roundRect(
+    1365, // x
+    1420, // y
+    420,  // width
+    480,  // height
+    120  // radius
+  );
+  ctx.stroke();
+}
+
+// RACE TRACK - FINISH LINE
+function drawFinishLine(ctx) {
+
+  const x = 1545;
+  const y = 1856.5;
+
+  const tile = 8;
+  const rows = 11;
+  const cols = 3;
+
+  for (let row = 0; row < rows; row++) {
+
+    for (let col = 0; col < cols; col++) {
+
+      ctx.fillStyle =
+        (row + col) % 2 === 0
+          ? "#F2F2F2"
+          : "#111111";
+
+      ctx.fillRect(
+        x + col * tile,
+        y + row * tile,
+        tile,
+        tile
+      );
+    }
+  }
+
+  // FINISH text
+  ctx.fillStyle = "#F2F2F2";
+  ctx.font = '700 20px "Exo 2"';
+  ctx.textAlign = "center";
+
+  ctx.save();
+  ctx.translate(x - 15, y + 40);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText("START", 0, 0);
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(x + 60, y + 40);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText("FINISH", 0, 0);
+  ctx.restore();
+}
+
+// TEXT HELPERS
+function drawWrappedGroundText(ctx, {
+  text,
+  x,
+  y,
+  maxWidth = 300,
+  lineHeight = 20,
+  font = '700 20px "Exo 2"',
+  color = "#FFFFFF",
+  align = "left",
+  rotation = 0
+}) {
+  ctx.save();
+
+  ctx.fillStyle = color;
+  ctx.font = font;
+  ctx.textAlign = align;
+  ctx.textBaseline = "top";
+
+  ctx.translate(x, y);
+  ctx.rotate(rotation);
+
+  wrapText(ctx, text, 0, 0, maxWidth, lineHeight);
+
+  ctx.restore();
+}
+
+// HEADERS
+function drawGroundHeading(ctx, {
+  text,
+  x,
+  y,
+  size = 150,
+  color = "#FFFFFF"
+}) {
+
+  ctx.fillStyle = color;
+  ctx.font = `700 ${size}px "Exo 2"`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  ctx.fillText(text, x, y);
+}
+
+// PARAGRAPHS
+function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+
+  const words = text.split(' ');
+  let line = '';
+
+  for (let i = 0; i < words.length; i++) {
+
+    const testLine = line + words[i] + ' ';
+    const testWidth = ctx.measureText(testLine).width;
+
+    if (testWidth > maxWidth && i > 0) {
+
+      ctx.fillText(line, x, y);
+
+      line = words[i] + ' ';
+
+      y += lineHeight;
+
+    } else {
+
+      line = testLine;
+
+    }
+  }
+
+  ctx.fillText(line, x, y);
+}
+
+/* ═══════════════════════════════════
+    DRAW TEXT
+═══════════════════════════════════ */
+
+function drawGroundText(ctx) {
+
+  drawGroundHeading(ctx, {
+    text: "STUNT PARK",
+    x: 1600,
+    y: 850,
+    size: 30
+  });
+
+  drawGroundHeading(ctx, {
+    text: "JUMP ZONE [SPACE]",
+    x: 1740,
+    y: 260,
+    size: 16
+  });
+
+  // TUNING ZONE
+  drawGroundHeading(ctx, {
+    text: "TUNING ZONE",
+    x: 250,
+    y: 580,
+    size: 30
+  });
+
+  // RACE TRACK
+  drawGroundHeading(ctx, {
+    text: "RACE TRACK",
+    x: 1350,
+    y: 1350,
+    size: 30
+  });
+  
+  // WELCOME
+  drawGroundHeading(ctx, {
+    text: "WELCOME TO THREE.JS",
+    x: 500,
+    y: 1400,
+    size: 30,
+    color: "#FFFC47",
+  });
+
+  drawWrappedGroundText(ctx, {
+    text: "Everything you see around you was built from simple 3D shapes, canvas textures and a lot of trial and error.",
+    x: 498,
+    y: 1450,
+    rotation: 0,
+    maxWidth: 380,
+    lineHeight: 24,
+    font: '700 25px "Exo 2"',
+    color: "#FFFFFF",
+    align: "center"
+  });
+
+   drawWrappedGroundText(ctx, {
+    text: "CONTROLS:",
+    x: 500,
+    y: 1590,
+    rotation: 0,
+    maxWidth: 380,
+    lineHeight: 24,
+    font: '700 25px "Exo 2"',
+    color: "#FFFC47",
+    align: "center"
+  });
+
+  drawWrappedGroundText(ctx, {
+    text: "DRIVE [WASD] BOOST [SHIFT] HONK [H] JUMP [SPACE] RESET [R]",
+    x: 420,
+    y: 1650,
+    rotation: 0,
+    maxWidth: 200,
+    lineHeight: 32,
+    font: '700 28px "Exo 2"',
+    color: "#FFFFFF",
+  });
+
+  drawWrappedGroundText(ctx, {
+    text: "⬆️ Check out the tuning options in the workshop and hit the race track to test your skills!",
+    x: 485,
+    y: 1825,
+    rotation: 0,
+    maxWidth: 500,
+    lineHeight: 25,
+    font: '700 20px "Exo 2"',
+    color: "#FFFFFF",
+    align: "center"
+  });
+
+  drawWrappedGroundText(ctx, {
+    text: "Enjoy exploring. Leave a like. 👍",
+    x: 350,
+    y: 1900,
+    rotation: 0,
+    maxWidth: 400,
+    lineHeight: 20,
+    font: '700 15px "Exo 2"',
+    color: "#FFFFFF",
+  });
+
+  drawWrappedGroundText(ctx, {
+    text: "Built one bug at a time.",
+    x: 622,
+    y: 130,
+    rotation: 0.5,
+    maxWidth: 400,
+    lineHeight: 20,
+    font: '700 25px "Exo 2"',
+    color: "#FFFFFF",
+  });
 }
 
 /* ═══════════════════════════════════
@@ -1091,6 +1659,11 @@ function animate() {
 
   updateCar(dt);
   updateCamera();
+
+  document.getElementById("coords").innerHTML =
+  `X: ${carBody.position.x.toFixed(1)}<br>
+   Y: ${carBody.position.y.toFixed(1)}<br>
+   Z: ${carBody.position.z.toFixed(1)}`;
 
   renderer.render(scene, camera); // draw scene/world again
 }
