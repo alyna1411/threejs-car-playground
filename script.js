@@ -1,12 +1,4 @@
-/*
- * Three.js car playground
- * © 2026 Alina — github.com/alyna1411
- * Demo-Version (v8)
- */
-
-// import three.js and store everything under "THREE" -> no physics, just objects
 import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
-// import cannon-es and store everything under "CANNON" -> for physics (gravity, collision, mass...)
 import * as CANNON from "https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js";
 
 // 3D text objects
@@ -171,7 +163,7 @@ const wheelStyles = {
       hubColor: 0xFFFFFF,
       hubRoughness: 0.5,
       hubMetalness: 0.2,
-      hubGeo: [0.01, 0.01, 0.01],
+      hubGeo: [0.03, 0.03, 8],
       bodyLift: 0.13,
     },
 
@@ -420,6 +412,8 @@ honkSound.volume = 0.2;
 /* ═══════════════════════════════════
    BUILD & LOOP
    ═══════════════════════════════════ */
+await document.fonts.load('700 30px "Exo 2"');
+
 init();
 animate();
 
@@ -3502,3 +3496,9 @@ function onResize() { // when browser size changes
   camera.updateProjectionMatrix(); // changed settings = recalculate size 
   renderer.setSize(window.innerWidth, window.innerHeight); // resizes canvas
 }
+
+/*
+ * Three.js car playground
+ * © 2026 Alina — github.com/alyna1411
+ * Demo-Version (v8)
+ */
