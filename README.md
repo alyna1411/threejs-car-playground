@@ -2,11 +2,15 @@
 
 A browser-based driving sandbox built with Three.js and Cannon-es.
 
+### 🚀 Live Demo
+
+[Try it out on CodePen!](https://codepen.io/editor/xalaynax/pen/019ee621-eac4-7a19-bebd-ac68740f4412)
+
 ## Features
 
-* Open world driving
+* Open-world driving
 * Vehicle physics
-* Interactives objects
+* Interactive objects
 * Tuning workshop
 * Race track
 * Stunt park
